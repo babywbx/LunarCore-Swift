@@ -2,7 +2,7 @@
 // Bridge between calendar dates and continuous day count.
 // All astronomical calculations use JD as the time basis.
 
-enum JulianDay {
+enum JulianDay: Sendable, Equatable, Hashable {
 
     // Gregorian calendar date → Julian Day Number
     // day parameter can be fractional (e.g. 7.5 = noon of the 7th)
