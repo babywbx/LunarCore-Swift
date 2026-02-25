@@ -303,6 +303,13 @@ struct LunarCalendarComputerTests {
         #expect(y2024.months.count == 12)
         #expect(y2024.chineseNewYear == expectedCNY)
     }
+
+    @Test func knownBoundaryCNYYears() throws {
+        let y1985 = try #require(LunarCalendarComputer.computeLunarYear(year: 1985))
+        let y2015 = try #require(LunarCalendarComputer.computeLunarYear(year: 2015))
+        #expect(y1985.chineseNewYear == SolarDate(year: 1985, month: 2, day: 20))
+        #expect(y2015.chineseNewYear == SolarDate(year: 2015, month: 2, day: 19))
+    }
 }
 
 // MARK: - SolarTermCalc

@@ -5,90 +5,53 @@
 
 import Foundation
 
-struct LunarMonthRaw: Sendable, Equatable, Hashable {
-    let month: Int
-    let isLeapMonth: Bool
-    let dayCount: Int
-    let startJDE: Double
-    let startDate: SolarDate
+package struct LunarMonthRaw: Sendable, Equatable, Hashable {
+    package let month: Int
+    package let isLeapMonth: Bool
+    package let dayCount: Int
+    package let startJDE: Double
+    package let startDate: SolarDate
 }
 
-struct LunarYearRaw: Sendable, Equatable, Hashable {
-    let year: Int
-    let leapMonth: Int?
-    let chineseNewYear: SolarDate
-    let months: [LunarMonthRaw]
+package struct LunarYearRaw: Sendable, Equatable, Hashable {
+    package let year: Int
+    package let leapMonth: Int?
+    package let chineseNewYear: SolarDate
+    package let months: [LunarMonthRaw]
 }
 
-enum LunarCalendarComputer: Sendable, Equatable, Hashable {
+package enum LunarCalendarComputer: Sendable, Equatable, Hashable {
 
     // Computes lunar-year layout for a given lunar year number.
     // The returned months start from 正月 and end at 腊月 (plus optional leap month).
-    static func computeLunarYear(year: Int) -> LunarYearRaw? {
+    //
+    // Assembles from two solstice cycles per GB/T 33661:
+    //   Cycle A (WS year-1 → WS year): provides months 1-10
+    //   Cycle B (WS year → WS year+1): provides months 11-12
+    // Leap month is determined within each solstice cycle independently.
+    package static func computeLunarYear(year: Int) -> LunarYearRaw? {
         guard
-            let cnyStart = chineseNewYearStartJDE(forGregorianYear: year),
-            let nextCnyStart = chineseNewYearStartJDE(forGregorianYear: year + 1),
-            cnyStart < nextCnyStart
+            let cycleA = solsticeCycle(forGregorianYear: year),
+            let cycleB = solsticeCycle(forGregorianYear: year + 1)
         else {
             return nil
         }
 
-        var monthStarts: [Double] = [cnyStart]
-        while true {
-            let next = MoonPhase.newMoonOnOrAfter(jde: monthStarts[monthStarts.count - 1] + 1.0)
-            if next >= nextCnyStart - 1e-9 {
-                break
-            }
-            monthStarts.append(next)
-        }
-        monthStarts.append(nextCnyStart)
-
-        let monthCount = monthStarts.count - 1
-        let zhongQi = zhongQiBetween(startJDE: cnyStart, endJDE: nextCnyStart)
-
-        var leapIndex: Int? = nil
-        if monthCount == 13 {
-            for i in 1..<monthCount {
-                if !hasZhongQi(startJDE: monthStarts[i], endJDE: monthStarts[i + 1], zhongQi: zhongQi) {
-                    leapIndex = i
-                    break
-                }
-            }
-        }
-
+        // Months 1-10 (with any leap) from cycle A
         var months: [LunarMonthRaw] = []
-        var previousMonthNumber = 1
+        for m in cycleA.months where m.month >= 1 && m.month <= 10 {
+            months.append(m)
+        }
 
-        for i in 0..<monthCount {
-            let isLeap = leapIndex == i
-            let monthNumber: Int
-            if i == 0 {
-                monthNumber = 1
-            } else if isLeap {
-                monthNumber = previousMonthNumber
-            } else {
-                monthNumber = previousMonthNumber % 12 + 1
-            }
-
-            let dayCount = Int((monthStarts[i + 1] - monthStarts[i]).rounded())
-            guard let startDate = solarDateFromJDEInBeijing(monthStarts[i]) else {
-                return nil
-            }
-            let monthRaw = LunarMonthRaw(
-                month: monthNumber,
-                isLeapMonth: isLeap,
-                dayCount: dayCount,
-                startJDE: monthStarts[i],
-                startDate: startDate
-            )
-            months.append(monthRaw)
-            previousMonthNumber = monthNumber
+        // Months 11-12 (with any leap) from cycle B
+        for m in cycleB.months where m.month == 11 || m.month == 12 {
+            months.append(m)
         }
 
         guard let cnyDate = months.first?.startDate else {
             return nil
         }
-        let leapMonthNumber = leapIndex.flatMap { idx in months[idx].month }
+        let leapMonthNumber = months.first(where: { $0.isLeapMonth })?.month
 
         return LunarYearRaw(
             year: year,
@@ -98,21 +61,15 @@ enum LunarCalendarComputer: Sendable, Equatable, Hashable {
         )
     }
 
-    // The first non-leap month-1 in the cycle between two winter solstices.
-    private static func chineseNewYearStartJDE(forGregorianYear year: Int) -> Double? {
-        guard let cycle = solsticeCycle(forGregorianYear: year) else {
-            return nil
-        }
-        return cycle.months.first { $0.month == 1 && !$0.isLeapMonth }?.startJDE
-    }
-
     private static func solsticeCycle(forGregorianYear year: Int) -> (months: [LunarMonthRaw], m11Start: Double, nextM11Start: Double)? {
         let wsPrev = SolarTermCalc.solarTermJDE(targetLongitude: SolarTerm.dongZhi.solarLongitude, year: year - 1)
         let wsCurr = SolarTermCalc.solarTermJDE(targetLongitude: SolarTerm.dongZhi.solarLongitude, year: year)
 
-        let m11Start = MoonPhase.newMoonOnOrBefore(jde: wsPrev)
-        let nextM11Start = MoonPhase.newMoonOnOrBefore(jde: wsCurr)
-        guard m11Start < nextM11Start else {
+        guard
+            let m11Start = month11Start(forWinterSolstice: wsPrev),
+            let nextM11Start = month11Start(forWinterSolstice: wsCurr),
+            m11Start < nextM11Start
+        else {
             return nil
         }
 
@@ -154,8 +111,14 @@ enum LunarCalendarComputer: Sendable, Equatable, Hashable {
                 monthNumber = months[i - 1].month % 12 + 1
             }
 
-            let dayCount = Int((starts[i + 1] - starts[i]).rounded())
-            guard let startDate = solarDateFromJDEInBeijing(starts[i]) else {
+            guard
+                let startDate = solarDateFromJDEInBeijing(starts[i]),
+                let endDate = solarDateFromJDEInBeijing(starts[i + 1])
+            else {
+                return nil
+            }
+            let dayCount = solarDayDistance(from: startDate, to: endDate)
+            guard dayCount == 29 || dayCount == 30 else {
                 return nil
             }
             months.append(
@@ -169,6 +132,23 @@ enum LunarCalendarComputer: Sendable, Equatable, Hashable {
             )
         }
         return (months, m11Start, nextM11Start)
+    }
+
+    // Month 11 anchor under date-level containment in UTC+8:
+    // if winter solstice and a new moon share a date, solstice belongs to the later month.
+    private static func month11Start(forWinterSolstice wsJDE: Double) -> Double? {
+        let before = MoonPhase.newMoonOnOrBefore(jde: wsJDE)
+        let after = MoonPhase.newMoonOnOrAfter(jde: wsJDE)
+        guard
+            let wsDate = solarDateFromJDEInBeijing(wsJDE),
+            let afterDate = solarDateFromJDEInBeijing(after)
+        else {
+            return nil
+        }
+        if afterDate == wsDate {
+            return after
+        }
+        return before
     }
 
     private static func zhongQiBetween(startJDE: Double, endJDE: Double) -> [Double] {
@@ -213,6 +193,12 @@ enum LunarCalendarComputer: Sendable, Equatable, Hashable {
             }
         }
         return false
+    }
+
+    private static func solarDayDistance(from start: SolarDate, to end: SolarDate) -> Int {
+        let startJD = JulianDay.fromGregorian(year: start.year, month: start.month, day: Double(start.day))
+        let endJD = JulianDay.fromGregorian(year: end.year, month: end.month, day: Double(end.day))
+        return Int((endJD - startJD).rounded())
     }
 
     private static func solarDateFromJDEInBeijing(_ jde: Double) -> SolarDate? {
