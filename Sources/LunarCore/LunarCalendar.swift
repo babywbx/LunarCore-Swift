@@ -1,30 +1,44 @@
-// LunarCalendar — Public API entry point.
-// Thread-safe singleton. Table lookups are O(1), solar terms are cached per year.
-
 import Foundation
 
+/// Chinese lunar calendar engine.
+///
+/// Thread-safe singleton providing bidirectional solar/lunar conversion,
+/// 24 solar terms, GanZhi (stems-branches), zodiac, and lunar birthday calculation.
+/// Supported range: 1900–2100.
+///
+/// ```swift
+/// let cal = LunarCalendar.shared
+/// let lunar = cal.lunarDate(from: SolarDate(year: 2025, month: 1, day: 29)!)
+/// ```
 public final class LunarCalendar: Sendable {
 
+    /// Shared singleton instance.
     public static let shared = LunarCalendar()
+
+    /// Library version string.
     public static let version = "1.0.0"
 
+    /// The range of lunar years supported by this library.
     public var supportedYearRange: ClosedRange<Int> { 1900...2100 }
 
-    // Solar term cache: year → 24 (term, date) pairs.
     private let solarTermCache = SolarTermCache()
 
+    /// Creates a new `LunarCalendar` instance.
     public init() {}
 
     // MARK: - Conversion
 
+    /// Converts a solar (Gregorian) date to a lunar date. Returns `nil` if out of range.
     public func lunarDate(from solar: SolarDate) -> LunarDate? {
         LunarTableLookup.solarToLunar(solar)
     }
 
+    /// Converts a lunar date to a solar (Gregorian) date. Returns `nil` if out of range.
     public func solarDate(from lunar: LunarDate) -> SolarDate? {
         LunarTableLookup.lunarToSolar(lunar)
     }
 
+    /// Converts a `Foundation.Date` to a lunar date. Defaults to Asia/Shanghai timezone.
     public func lunarDate(
         from date: Date,
         in timeZone: TimeZone = TimeZone(identifier: "Asia/Shanghai")!
@@ -35,36 +49,43 @@ public final class LunarCalendar: Sendable {
 
     // MARK: - Lunar year info
 
+    /// Returns the leap month number (1–12) for the given lunar year, or `nil` if no leap month.
     public func leapMonth(in year: Int) -> Int? {
         guard let info = LunarTableLookup.decode(year: year) else { return nil }
         return info.leapMonth > 0 ? info.leapMonth : nil
     }
 
+    /// Returns the number of days (29 or 30) in a lunar month.
     public func daysInMonth(_ month: Int, isLeap: Bool, year: Int) -> Int? {
         guard let info = LunarTableLookup.decode(year: year) else { return nil }
         return LunarTableLookup.monthDayCount(info: info, month: month, isLeap: isLeap)
     }
 
+    /// Returns the total number of days in a lunar year (353–385).
     public func daysInYear(_ year: Int) -> Int? {
         guard let info = LunarTableLookup.decode(year: year) else { return nil }
         return LunarTableLookup.yearDayCount(info: info)
     }
 
+    /// Returns the Gregorian date of Chinese New Year (正月初一) for the given year.
     public func lunarNewYear(in year: Int) -> SolarDate? {
         guard let info = LunarTableLookup.decode(year: year) else { return nil }
         return SolarDate(year: year, month: info.cnyMonth, day: info.cnyDay)
     }
 
-    // MARK: - Solar terms (computed on demand, cached per year)
+    // MARK: - Solar terms
 
+    /// Returns all 24 solar terms for the given year, in chronological order.
     public func solarTerms(in year: Int) -> [(term: SolarTerm, date: SolarDate)] {
         solarTermCache.allTerms(in: year)
     }
 
+    /// Returns the Gregorian date of a specific solar term in the given year.
     public func solarTermDate(_ term: SolarTerm, in year: Int) -> SolarDate? {
         solarTermCache.date(for: term, in: year)
     }
 
+    /// Returns the solar term that falls on the given date, or `nil`.
     public func solarTerm(on date: SolarDate) -> SolarTerm? {
         let terms = solarTermCache.allTerms(in: date.year)
         return terms.first(where: { $0.date == date })?.term
@@ -72,13 +93,15 @@ public final class LunarCalendar: Sendable {
 
     // MARK: - GanZhi
 
+    /// Returns the year GanZhi (干支) for the given lunar year.
     public func yearGanZhi(for lunarYear: Int) -> GanZhi {
         GanZhi.year(lunarYear)
     }
 
-    // Month GanZhi — bounded by 节 (Jie) solar terms.
-    // The month GanZhi changes at each Jie, not at lunar month boundaries.
-    // Month 1 (寅月) starts at 立春, month 2 at 惊蛰, etc.
+    /// Returns the month GanZhi for the given solar date.
+    ///
+    /// Month GanZhi changes at 节 (Jie) solar terms, not lunar month boundaries.
+    /// Month 1 (寅月) starts at 立春, month 2 at 惊蛰, etc.
     public func monthGanZhi(for solar: SolarDate) -> GanZhi {
         // Jie terms in calendar order within a year:
         // 小寒(Jan, month 12) → 立春(Feb, month 1) → ... → 大雪(Dec, month 11)
@@ -122,21 +145,32 @@ public final class LunarCalendar: Sendable {
         return GanZhi.month(yearGan: yearGan, month: ganZhiMonth)!
     }
 
+    /// Returns the day GanZhi for the given solar date.
     public func dayGanZhi(for solar: SolarDate) -> GanZhi {
         GanZhi.day(for: solar)
     }
 
     // MARK: - Zodiac
 
+    /// Returns the Chinese zodiac animal for the given lunar year.
     public func zodiac(for lunarYear: Int) -> ChineseZodiac {
         ChineseZodiac.fromYear(lunarYear)
     }
 
     // MARK: - Birthday
 
-    // Next lunar birthday with fallback:
-    // 1. Try leap month if isLeapMonth; if that year has no such leap → try regular month
-    // 2. If month has fewer days than birthday day (e.g. day 30 in a 29-day month) → use last day
+    /// Finds the next occurrence of a lunar birthday after the given date.
+    ///
+    /// Fallback behavior:
+    /// 1. If `isLeapMonth` is `true` but the year has no such leap month, falls back to the regular month.
+    /// 2. If the month has fewer days than `day`, uses the last day of that month.
+    ///
+    /// - Parameters:
+    ///   - month: Lunar month (1–12).
+    ///   - day: Lunar day (1–30).
+    ///   - isLeapMonth: Whether the birthday is in a leap month.
+    ///   - after: Reference date (defaults to today in Asia/Shanghai).
+    /// - Returns: The next solar date of the birthday, or `nil` if out of range.
     public func nextLunarBirthday(
         month: Int, day: Int,
         isLeapMonth: Bool = false,
@@ -164,7 +198,14 @@ public final class LunarCalendar: Sendable {
         return nil
     }
 
-    // Lunar birthdays for the next N years.
+    /// Returns the solar dates of the next `years` occurrences of a lunar birthday.
+    ///
+    /// - Parameters:
+    ///   - month: Lunar month (1–12).
+    ///   - day: Lunar day (1–30).
+    ///   - isLeapMonth: Whether the birthday is in a leap month.
+    ///   - from: Reference date (defaults to today in Asia/Shanghai).
+    ///   - years: Number of occurrences to return (default: 10).
     public func lunarBirthdays(
         month: Int, day: Int,
         isLeapMonth: Bool = false,

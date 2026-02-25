@@ -1,9 +1,12 @@
-// Chinese Zodiac (生肖)
-
+/// The twelve Chinese Zodiac animals (生肖).
+///
+/// Ordered: Rat, Ox, Tiger, Rabbit, Dragon, Snake,
+/// Horse, Goat, Monkey, Rooster, Dog, Pig.
 public enum ChineseZodiac: Int, CaseIterable, Sendable, Equatable, Hashable {
     case rat = 0, ox, tiger, rabbit, dragon, snake,
          horse, goat, monkey, rooster, dog, pig
 
+    /// Chinese character (e.g. "鼠").
     public var chinese: String {
         switch self {
         case .rat: "鼠"
@@ -21,6 +24,7 @@ public enum ChineseZodiac: Int, CaseIterable, Sendable, Equatable, Hashable {
         }
     }
 
+    /// English name (e.g. "Rat").
     public var english: String {
         switch self {
         case .rat: "Rat"
@@ -38,6 +42,7 @@ public enum ChineseZodiac: Int, CaseIterable, Sendable, Equatable, Hashable {
         }
     }
 
+    /// Emoji representation (e.g. "🐀").
     public var emoji: String {
         switch self {
         case .rat: "🐀"
@@ -55,7 +60,7 @@ public enum ChineseZodiac: Int, CaseIterable, Sendable, Equatable, Hashable {
         }
     }
 
-    // Zodiac from lunar year (boundary: 正月初一)
+    /// Returns the zodiac for a lunar year. Boundary: 正月初一.
     public static func fromYear(_ lunarYear: Int) -> ChineseZodiac {
         let index = ((lunarYear - 4) % 12 + 12) % 12
         return ChineseZodiac.allCases[index]

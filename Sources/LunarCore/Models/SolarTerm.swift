@@ -1,7 +1,7 @@
-// 24 Solar Terms (二十四节气)
-// Ordered starting from 小寒, matching the traditional calendar year cycle.
-// Solar longitude formula: (285 + rawValue * 15) % 360
-
+/// The 24 Solar Terms (二十四节气).
+///
+/// Ordered from 小寒 (Minor Cold), matching the traditional calendar year cycle.
+/// Solar longitude: `(285 + rawValue * 15) % 360`.
 public enum SolarTerm: Int, CaseIterable, Sendable, Equatable, Hashable {
     case xiaoHan = 0       // 小寒 285°
     case daHan             // 大寒 300°
@@ -28,16 +28,17 @@ public enum SolarTerm: Int, CaseIterable, Sendable, Equatable, Hashable {
     case daXue             // 大雪 255°
     case dongZhi           // 冬至 270°
 
-    // Solar longitude in degrees
+    /// Solar longitude in degrees (0–345).
     public var solarLongitude: Double {
         Double((285 + rawValue * 15) % 360)
     }
 
-    // 中气 (Zhong Qi) are at odd indices; 节 (Jie) are at even indices
+    /// Whether this is a 中气 (Zhong Qi / major term). Jie terms have even indices.
     public var isZhongQi: Bool {
         rawValue % 2 == 1
     }
 
+    /// Chinese name (e.g. "小寒").
     public var chineseName: String {
         switch self {
         case .xiaoHan: "小寒"
@@ -67,6 +68,7 @@ public enum SolarTerm: Int, CaseIterable, Sendable, Equatable, Hashable {
         }
     }
 
+    /// English name (e.g. "Minor Cold").
     public var englishName: String {
         switch self {
         case .xiaoHan: "Minor Cold"

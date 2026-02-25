@@ -1,10 +1,17 @@
 import Foundation
 
+/// A Gregorian (solar) calendar date.
+///
+/// Validated on creation; invalid dates (e.g. Feb 30) return `nil`.
 public struct SolarDate: Equatable, Hashable, Comparable, Sendable {
+    /// Gregorian year.
     public let year: Int
-    public let month: Int  // 1-12
-    public let day: Int    // 1-31
+    /// Gregorian month (1–12).
+    public let month: Int
+    /// Gregorian day (1–31).
+    public let day: Int
 
+    /// Creates a solar date, returning `nil` if the date is invalid.
     public init?(year: Int, month: Int, day: Int) {
         guard SolarDate.isValid(year: year, month: month, day: day) else {
             return nil
@@ -22,12 +29,14 @@ public struct SolarDate: Equatable, Hashable, Comparable, Sendable {
 
     // MARK: - Foundation.Date interop
 
+    /// Converts to `Foundation.Date` in the given time zone.
     public func toDate(in timeZone: TimeZone) -> Date? {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timeZone
         return cal.date(from: DateComponents(year: year, month: month, day: day))
     }
 
+    /// Creates a `SolarDate` from a `Foundation.Date` in the given time zone.
     public static func from(_ date: Date, in timeZone: TimeZone) -> SolarDate? {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = timeZone
@@ -38,6 +47,7 @@ public struct SolarDate: Equatable, Hashable, Comparable, Sendable {
         return SolarDate(year: year, month: month, day: day)
     }
 
+    /// Returns whether the given year/month/day forms a valid Gregorian date.
     public static func isValid(year: Int, month: Int, day: Int) -> Bool {
         guard (1...12).contains(month), (1...31).contains(day) else {
             return false

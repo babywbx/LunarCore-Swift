@@ -1,8 +1,10 @@
-// Earthly Branches (地支)
-
+/// The twelve Earthly Branches (地支).
+///
+/// Ordered: 子 丑 寅 卯 辰 巳 午 未 申 酉 戌 亥 (raw values 0–11).
 public enum DiZhi: Int, CaseIterable, Sendable, Equatable, Hashable {
     case zi = 0, chou, yin, mao, chen, si, wu, wei, shen, you, xu, hai
 
+    /// Chinese character representation (e.g. "子").
     public var chinese: String {
         switch self {
         case .zi: "子"
@@ -20,6 +22,7 @@ public enum DiZhi: Int, CaseIterable, Sendable, Equatable, Hashable {
         }
     }
 
+    /// Pinyin with tone marks (e.g. "zǐ").
     public var pinyin: String {
         switch self {
         case .zi: "zǐ"

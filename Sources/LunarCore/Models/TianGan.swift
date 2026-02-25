@@ -1,8 +1,10 @@
-// Heavenly Stems (天干)
-
+/// The ten Heavenly Stems (天干).
+///
+/// Ordered: 甲 乙 丙 丁 戊 己 庚 辛 壬 癸 (raw values 0–9).
 public enum TianGan: Int, CaseIterable, Sendable, Equatable, Hashable {
     case jia = 0, yi, bing, ding, wu, ji, geng, xin, ren, gui
 
+    /// Chinese character representation (e.g. "甲").
     public var chinese: String {
         switch self {
         case .jia: "甲"
@@ -18,6 +20,7 @@ public enum TianGan: Int, CaseIterable, Sendable, Equatable, Hashable {
         }
     }
 
+    /// Pinyin with tone marks (e.g. "jiǎ").
     public var pinyin: String {
         switch self {
         case .jia: "jiǎ"

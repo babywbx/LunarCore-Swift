@@ -1,20 +1,30 @@
-// Lunar date formatting (农历格式化)
-
+/// Formats ``LunarDate`` values into human-readable strings.
+///
+/// Supports Chinese (default) and English locales.
+///
+/// ```swift
+/// let fmt = LunarFormatter(locale: .chinese)
+/// fmt.string(from: lunar)            // "二〇二五年正月初一"
+/// fmt.string(from: lunar, useGanZhi: true) // "乙巳年正月初一"
+/// ```
 public struct LunarFormatter: Sendable, Equatable, Hashable {
 
+    /// Output locale for formatting.
     public enum Locale: Sendable, Equatable, Hashable {
         case chinese, english
     }
 
+    /// The locale used for formatting.
     public var locale: Locale
 
+    /// Creates a formatter with the given locale (default: `.chinese`).
     public init(locale: Locale = .chinese) {
         self.locale = locale
     }
 
     // MARK: - Month name
 
-    // "正月" "腊月" "闰六月" / "1st Month" "Leap 6th Month"
+    /// Returns the month name (e.g. "正月", "闰六月" / "1st Month", "Leap 6th Month").
     public func monthName(_ month: Int, isLeap: Bool = false) -> String {
         switch locale {
         case .chinese:
@@ -28,7 +38,7 @@ public struct LunarFormatter: Sendable, Equatable, Hashable {
 
     // MARK: - Day name
 
-    // "初一" "十五" "廿三" "三十" / "Day 1" "Day 15"
+    /// Returns the day name (e.g. "初一", "廿三" / "Day 1", "Day 23").
     public func dayName(_ day: Int) -> String {
         switch locale {
         case .chinese:
@@ -40,7 +50,9 @@ public struct LunarFormatter: Sendable, Equatable, Hashable {
 
     // MARK: - Full string
 
-    // "二〇二五年正月十五" or "乙巳年正月十五"
+    /// Full date string (e.g. "二〇二五年正月十五" or "乙巳年正月十五").
+    ///
+    /// - Parameter useGanZhi: Use GanZhi year instead of numeric year.
     public func string(from lunar: LunarDate, useGanZhi: Bool = false) -> String {
         switch locale {
         case .chinese:
@@ -69,7 +81,7 @@ public struct LunarFormatter: Sendable, Equatable, Hashable {
 
     // MARK: - Short string
 
-    // "正月十五"
+    /// Short date string without year (e.g. "正月十五").
     public func shortString(from lunar: LunarDate) -> String {
         let monthStr = monthName(lunar.month, isLeap: lunar.isLeapMonth)
         let dayStr = dayName(lunar.day)
@@ -83,7 +95,7 @@ public struct LunarFormatter: Sendable, Equatable, Hashable {
 
     // MARK: - Chinese year digits
 
-    // 2025 → "二〇二五"
+    /// Converts a numeric year to Chinese digits (e.g. 2025 → "二〇二五").
     public func chineseYear(_ year: Int) -> String {
         let digits = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
         return String(year).compactMap { c in

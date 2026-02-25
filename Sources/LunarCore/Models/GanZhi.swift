@@ -1,27 +1,31 @@
-// Sexagenary Cycle (干支) — Stem-Branch combination
-// Valid pairs require same parity: gan.rawValue and zhi.rawValue both even or both odd.
-
+/// A Sexagenary Cycle (干支) stem-branch pair.
+///
+/// The 60-year cycle combines ``TianGan`` and ``DiZhi``.
+/// Valid pairs require matching parity (both even or both odd raw values).
 public struct GanZhi: Equatable, Hashable, Sendable {
+    /// The Heavenly Stem component.
     public let gan: TianGan
+    /// The Earthly Branch component.
     public let zhi: DiZhi
 
-    // 60-cycle index (0 = 甲子, 59 = 癸亥)
+    /// Index in the 60-cycle (0 = 甲子, 59 = 癸亥).
     public var index: Int {
         ((6 * gan.rawValue - 5 * zhi.rawValue) % 60 + 60) % 60
     }
 
+    /// Chinese character pair (e.g. "甲子").
     public var chinese: String {
         "\(gan.chinese)\(zhi.chinese)"
     }
 
-    // Failable: rejects invalid combinations (mismatched parity)
+    /// Creates a `GanZhi` from explicit stem and branch. Returns `nil` if parity mismatches.
     public init?(gan: TianGan, zhi: DiZhi) {
         guard gan.rawValue % 2 == zhi.rawValue % 2 else { return nil }
         self.gan = gan
         self.zhi = zhi
     }
 
-    // Create from 60-cycle index (0-59), always valid
+    /// Creates a `GanZhi` from a 60-cycle index (0–59). Always valid.
     public init(index: Int) {
         let i = ((index % 60) + 60) % 60
         self.gan = TianGan.allCases[i % TianGan.allCases.count]
@@ -30,15 +34,14 @@ public struct GanZhi: Equatable, Hashable, Sendable {
 
     // MARK: - Pure math calculations
 
-    // Year GanZhi from lunar year number
-    // Boundary: traditionally 立春, handled by caller
+    /// Year GanZhi from lunar year number. Boundary at 立春 is handled by caller.
     public static func year(_ lunarYear: Int) -> GanZhi {
         GanZhi(index: ((lunarYear - 4) % 60 + 60) % 60)
     }
 
-    // Month GanZhi from year's TianGan and month number (1-12)
-    // Boundary: each 节 (Jie) solar term, handled by caller
-    // Rule: 五虎遁元 — base = (yearGan % 5) * 2 + 2, diZhi starts at 寅 for month 1
+    /// Month GanZhi from year's TianGan and month number (1–12).
+    ///
+    /// Uses the 五虎遁元 rule. Boundary at each 节 (Jie) solar term is handled by caller.
     public static func month(yearGan: TianGan, month: Int) -> GanZhi? {
         guard (1...12).contains(month) else { return nil }
         let ganIndex = ((yearGan.rawValue % 5) * 2 + 2 + month - 1) % 10
@@ -47,9 +50,7 @@ public struct GanZhi: Equatable, Hashable, Sendable {
         return GanZhi(index: ((6 * ganIndex - 5 * zhiIndex) % 60 + 60) % 60)
     }
 
-    // Day GanZhi from solar date
-    // Reference: 2000-01-07 = 甲子日 (index 0)
-    // Uses JulianDay for day difference calculation
+    /// Day GanZhi from solar date. Reference: 2000-01-07 = 甲子日 (index 0).
     public static func day(for date: SolarDate) -> GanZhi {
         // JD at midnight of 2000-01-07
         let referenceJD = 2_451_550.5

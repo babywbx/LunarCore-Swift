@@ -1,11 +1,18 @@
-// Chinese Lunar Calendar Date (农历日期)
-
+/// A Chinese lunar calendar date (农历日期).
+///
+/// The `year` uses Gregorian numbering (e.g. 2025).
+/// Leap months are indicated by ``isLeapMonth``.
 public struct LunarDate: Equatable, Hashable, Comparable, Sendable {
-    public let year: Int           // Lunar year (Gregorian numbering, e.g. 2025)
-    public let month: Int          // Lunar month (1-12)
-    public let day: Int            // Lunar day (1-30)
-    public let isLeapMonth: Bool   // Whether this is a leap month
+    /// Lunar year in Gregorian numbering (e.g. 2025).
+    public let year: Int
+    /// Lunar month (1–12).
+    public let month: Int
+    /// Lunar day (1–30).
+    public let day: Int
+    /// Whether this is a leap (intercalary) month.
+    public let isLeapMonth: Bool
 
+    /// Creates a lunar date, returning `nil` if month/day are out of range.
     public init?(year: Int, month: Int, day: Int, isLeapMonth: Bool = false) {
         guard LunarDate.isValid(month: month, day: day) else {
             return nil
@@ -24,6 +31,7 @@ public struct LunarDate: Equatable, Hashable, Comparable, Sendable {
         return lhs.day < rhs.day
     }
 
+    /// Returns whether month (1–12) and day (1–30) are in valid range.
     public static func isValid(month: Int, day: Int) -> Bool {
         (1...12).contains(month) && (1...30).contains(day)
     }
