@@ -121,4 +121,15 @@ struct FormatterEnglishTests {
         let lunar = try #require(LunarDate(year: 2025, month: 8, day: 15))
         #expect(fmt.shortString(from: lunar) == "8th Month Day 15")
     }
+
+    @Test func fullString() throws {
+        let lunar = try #require(LunarDate(year: 2025, month: 8, day: 15))
+        #expect(fmt.string(from: lunar) == "2025, 8th Month Day 15")
+    }
+
+    @Test func fullStringWithGanZhi() throws {
+        let lunar = try #require(LunarDate(year: 2025, month: 8, day: 15))
+        let result = fmt.string(from: lunar, useGanZhi: true)
+        #expect(result == "yǐ-sì, 8th Month Day 15")
+    }
 }

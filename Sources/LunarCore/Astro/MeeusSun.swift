@@ -29,9 +29,13 @@ enum MeeusSun: Sendable, Equatable, Hashable {
         // Nutation correction (degrees) — Meeus Chapter 22
         let deltaPsi = Nutation.nutationInLongitude(T: T)
 
-        // Aberration correction (degrees)
-        // Constant of aberration κ = 20.4898" — Meeus p.164
-        let aberration = -20.4898 / 3600.0
+        // Earth-Sun distance R (AU) — Meeus eq. 25.5
+        let e = 0.016708634 - 0.000042037 * T - 0.0000001267 * T * T
+        let vRad = (M + C) * .pi / 180.0
+        let R = 1.000001018 * (1 - e * e) / (1 + e * cos(vRad))
+
+        // Aberration correction (degrees) — Meeus p.164, κ/R
+        let aberration = -20.4898 / (R * 3600.0)
 
         // Apparent longitude
         let apparent = trueLon + deltaPsi + aberration

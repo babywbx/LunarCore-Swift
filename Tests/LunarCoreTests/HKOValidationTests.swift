@@ -45,9 +45,10 @@ struct HKOValidationTests {
 
     // MARK: - Tests
 
-    @Test("HKO fixture file is present")
+    @Test("HKO fixture file is present and non-trivial")
     func fixtureExists() {
         #expect(!Self.entries.isEmpty, "hko_data.json not found or empty. Run: swift Scripts/fetch_hko.swift")
+        #expect(Self.entries.count >= 365, "HKO fixture has only \(Self.entries.count) entries, expected at least 1 year")
     }
 
     @Test("HKO daily match", arguments: HKOValidationTests.entries)

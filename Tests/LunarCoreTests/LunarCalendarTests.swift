@@ -193,6 +193,24 @@ struct CalendarGanZhiTests {
         let gz = cal.monthGanZhi(for: SolarDate(year: 2025, month: 2, day: 10)!)
         #expect(gz.zhi == .yin) // 寅月 (month 1)
     }
+
+    @Test("monthGanZhi: December after 大雪 is month 11 (子月)")
+    func monthGanZhiDecemberAfterDaXue() {
+        // 大雪 2024 is around Dec 7. Dec 15 → month 11 (子月) of year 2024 GanZhi cycle
+        let gz = cal.monthGanZhi(for: SolarDate(year: 2024, month: 12, day: 15)!)
+        #expect(gz.zhi == .zi) // 子月 (month 11)
+    }
+
+    @Test("monthGanZhi: exactly on Jie term boundary")
+    func monthGanZhiOnBoundary() {
+        // 立春 2025 = Feb 3. The day itself should be month 1 (寅月).
+        guard let liChunDate = cal.solarTermDate(.liChun, in: 2025) else {
+            Issue.record("liChun 2025 not found")
+            return
+        }
+        let gz = cal.monthGanZhi(for: liChunDate)
+        #expect(gz.zhi == .yin) // 寅月 starts on 立春
+    }
 }
 
 // MARK: - Zodiac
@@ -317,6 +335,13 @@ struct CalendarBirthdayTests {
         #expect(cal.lunarBirthdays(month: 8, day: 0, from: after, years: 3).isEmpty)
         #expect(cal.lunarBirthdays(month: 8, day: 31, from: after, years: 3).isEmpty)
     }
+
+    @Test("lunarBirthdays with years=0 or years=-1 returns empty")
+    func birthdaysZeroYears() {
+        let after = SolarDate(year: 2025, month: 1, day: 1)!
+        #expect(cal.lunarBirthdays(month: 8, day: 15, from: after, years: 0).isEmpty)
+        #expect(cal.lunarBirthdays(month: 8, day: 15, from: after, years: -1).isEmpty)
+    }
 }
 
 // MARK: - Version & Metadata
@@ -326,7 +351,7 @@ struct CalendarMetadataTests {
 
     @Test("version is set")
     func version() {
-        #expect(LunarCalendar.version == "1.0.0")
+        #expect(LunarCalendar.version == "1.1.1")
     }
 
     @Test("shared is same instance")

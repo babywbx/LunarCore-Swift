@@ -91,6 +91,36 @@ struct SolarDateTests {
     @Test func leapDayAccepted() {
         #expect(SolarDate(year: 2024, month: 2, day: 29) != nil)
     }
+
+    @Test func centuryYearLeapRules() {
+        // 1900 is NOT a leap year (divisible by 100 but not 400)
+        #expect(SolarDate(year: 1900, month: 2, day: 29) == nil)
+        // 2000 IS a leap year (divisible by 400)
+        #expect(SolarDate(year: 2000, month: 2, day: 29) != nil)
+        // 2100 is NOT a leap year
+        #expect(SolarDate(year: 2100, month: 2, day: 29) == nil)
+    }
+
+    @Test func isValidDirectCall() {
+        #expect(SolarDate.isValid(year: 2025, month: 6, day: 15) == true)
+        #expect(SolarDate.isValid(year: 2025, month: 2, day: 29) == false)
+        #expect(SolarDate.isValid(year: 2025, month: 0, day: 1) == false)
+        #expect(SolarDate.isValid(year: 2025, month: 1, day: 32) == false)
+    }
+
+    @Test func codableRoundTrip() throws {
+        let solar = try #require(SolarDate(year: 2025, month: 8, day: 15))
+        let data = try JSONEncoder().encode(solar)
+        let decoded = try JSONDecoder().decode(SolarDate.self, from: data)
+        #expect(decoded == solar)
+    }
+
+    @Test func codableRejectsInvalidDate() {
+        let json = #"{"year":2025,"month":2,"day":30}"#.data(using: .utf8)!
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(SolarDate.self, from: json)
+        }
+    }
 }
 
 @Suite("LunarDate")
@@ -127,6 +157,26 @@ struct LunarDateTests {
     @Test func invalidDayRejected() {
         #expect(LunarDate(year: 2025, month: 1, day: 0) == nil)
         #expect(LunarDate(year: 2025, month: 1, day: 31) == nil)
+    }
+
+    @Test func codableRoundTrip() throws {
+        let lunar = try #require(LunarDate(year: 2025, month: 6, day: 15, isLeapMonth: true))
+        let data = try JSONEncoder().encode(lunar)
+        let decoded = try JSONDecoder().decode(LunarDate.self, from: data)
+        #expect(decoded == lunar)
+    }
+
+    @Test func codableDefaultsLeapToFalse() throws {
+        let json = #"{"year":2025,"month":8,"day":15}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(LunarDate.self, from: json)
+        #expect(decoded.isLeapMonth == false)
+    }
+
+    @Test func codableRejectsInvalidDate() {
+        let json = #"{"year":2025,"month":0,"day":15}"#.data(using: .utf8)!
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(LunarDate.self, from: json)
+        }
     }
 }
 

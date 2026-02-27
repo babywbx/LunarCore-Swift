@@ -29,14 +29,14 @@ struct BoundaryTests {
     }
 
     // BC2: 1979 大寒 — solar term moment ~6 seconds from midnight.
+    // 大寒 1979 occurred at 20:00 Jan 20 UTC+8, so the correct day is 20.
     @Test("BC2: 1979 大寒 near midnight")
     func daHan1979() {
         let date = cal.solarTermDate(.daHan, in: 1979)
         #expect(date != nil)
         #expect(date!.year == 1979)
         #expect(date!.month == 1)
-        // The exact day depends on which side of midnight the 6-second offset falls.
-        #expect(date!.day == 20 || date!.day == 21)
+        #expect(date!.day == 20)
     }
 
     // BC3: 2057 Mid-Autumn — boundary year with disputed month 9.

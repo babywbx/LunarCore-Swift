@@ -79,7 +79,7 @@ struct CrossValidationTests {
             let msg = "Year \(year): \(mismatches.count)/\(total) mismatches "
                 + "(match rate: \(String(format: "%.2f%%", matchRate * 100))). "
                 + "First 5: \(first5)"
-            print(msg)
+            Issue.record(Comment(rawValue: msg))
         }
         // Apple has known bugs; assert >= 99% match
         #expect(matchRate >= 0.99,

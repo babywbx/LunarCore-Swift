@@ -16,12 +16,19 @@ public final class LunarCalendar: Sendable {
     public static let shared = LunarCalendar()
 
     /// Library version string.
-    public static let version = "1.0.0"
+    public static let version = "1.1.1"
 
     /// The range of lunar years supported by this library.
     public var supportedYearRange: ClosedRange<Int> { 1900...2100 }
 
     private let solarTermCache = SolarTermCache()
+
+    // Jie boundaries in chronological order inside a Gregorian year.
+    private static let monthGanZhiJieTerms: [(term: SolarTerm, month: Int)] = [
+        (.xiaoHan, 12), (.liChun, 1), (.jingZhe, 2), (.qingMing, 3),
+        (.liXia, 4), (.mangZhong, 5), (.xiaoShu, 6), (.liQiu, 7),
+        (.baiLu, 8), (.hanLu, 9), (.liDong, 10), (.daXue, 11),
+    ]
 
     /// Creates a new `LunarCalendar` instance.
     public init() {}
@@ -87,8 +94,7 @@ public final class LunarCalendar: Sendable {
 
     /// Returns the solar term that falls on the given date, or `nil`.
     public func solarTerm(on date: SolarDate) -> SolarTerm? {
-        let terms = solarTermCache.allTerms(in: date.year)
-        return terms.first(where: { $0.date == date })?.term
+        solarTermCache.term(on: date, in: date.year)
     }
 
     // MARK: - GanZhi
@@ -103,46 +109,28 @@ public final class LunarCalendar: Sendable {
     /// Month GanZhi changes at 节 (Jie) solar terms, not lunar month boundaries.
     /// Month 1 (寅月) starts at 立春, month 2 at 惊蛰, etc.
     public func monthGanZhi(for solar: SolarDate) -> GanZhi {
-        // Jie terms in calendar order within a year:
-        // 小寒(Jan, month 12) → 立春(Feb, month 1) → ... → 大雪(Dec, month 11)
-        let jieTerms: [(term: SolarTerm, month: Int)] = [
-            (.xiaoHan, 12), (.liChun, 1), (.jingZhe, 2), (.qingMing, 3),
-            (.liXia, 4), (.mangZhong, 5), (.xiaoShu, 6), (.liQiu, 7),
-            (.baiLu, 8), (.hanLu, 9), (.liDong, 10), (.daXue, 11),
-        ]
-
-        // Collect jie dates from current year; also need previous year's 大雪
-        let currentTerms = solarTermCache.allTerms(in: solar.year)
-        let prevTerms = solarTermCache.allTerms(in: solar.year - 1)
-
-        // Build (date, month, ganZhiYear) pairs in calendar order
-        var boundaries: [(date: SolarDate, month: Int, ganZhiYear: Int)] = []
-
-        // Previous year's 大雪 (month 11, year = solar.year - 1)
-        if let daXue = prevTerms.first(where: { $0.term == .daXue })?.date {
-            boundaries.append((daXue, 11, solar.year - 1))
-        }
-
-        for (jie, month) in jieTerms {
-            if let jieDate = currentTerms.first(where: { $0.term == jie })?.date {
-                // 小寒/大雪 (month 11, 12) belong to previous GanZhi year
-                let year = month >= 11 ? solar.year - 1 : solar.year
-                boundaries.append((jieDate, month, year))
-            }
-        }
-
-        // Find the latest boundary on or before the date
+        // Default: 子月 (month 11) of previous GanZhi year cycle.
         var ganZhiMonth = 11
         var ganZhiYear = solar.year - 1
-        for b in boundaries {
-            if solar >= b.date {
-                ganZhiMonth = b.month
-                ganZhiYear = b.ganZhiYear
+
+        let currentTermDates = solarTermCache.termDateMap(in: solar.year)
+
+        for (jie, month) in Self.monthGanZhiJieTerms {
+            guard let jieDate = currentTermDates[jie] else { break }
+            if solar >= jieDate {
+                ganZhiMonth = month
+                ganZhiYear = month >= 11 ? solar.year - 1 : solar.year
+            } else {
+                break
             }
         }
 
         let yearGan = GanZhi.year(ganZhiYear).gan
-        return GanZhi.month(yearGan: yearGan, month: ganZhiMonth)!
+        guard let result = GanZhi.month(yearGan: yearGan, month: ganZhiMonth) else {
+            assertionFailure("ganZhiMonth \(ganZhiMonth) out of range")
+            return GanZhi.year(ganZhiYear)
+        }
+        return result
     }
 
     /// Returns the day GanZhi for the given solar date.
@@ -287,35 +275,61 @@ public final class LunarCalendar: Sendable {
 // MARK: - Solar term cache (thread-safe)
 
 private final class SolarTermCache: @unchecked Sendable {
+    private struct YearTermIndex: Sendable {
+        let ordered: [(term: SolarTerm, date: SolarDate)]
+        let byTerm: [SolarTerm: SolarDate]
+        let byDate: [SolarDate: SolarTerm]
+    }
+
     private let lock = NSLock()
-    private var cache: [Int: [(term: SolarTerm, date: SolarDate)]] = [:]
+    private var cache: [Int: YearTermIndex] = [:]
 
     func allTerms(in year: Int) -> [(term: SolarTerm, date: SolarDate)] {
-        lock.lock()
-        if let cached = cache[year] {
-            lock.unlock()
-            return cached
-        }
-        lock.unlock()
-
-        let terms = Self.computeAllTerms(in: year)
-
-        lock.lock()
-        cache[year] = terms
-        lock.unlock()
-        return terms
+        index(in: year).ordered
     }
 
     func date(for term: SolarTerm, in year: Int) -> SolarDate? {
-        allTerms(in: year).first(where: { $0.term == term })?.date
+        index(in: year).byTerm[term]
     }
 
-    private static func computeAllTerms(in year: Int) -> [(term: SolarTerm, date: SolarDate)] {
-        SolarTerm.allCases.compactMap { term in
+    func term(on date: SolarDate, in year: Int) -> SolarTerm? {
+        index(in: year).byDate[date]
+    }
+
+    func termDateMap(in year: Int) -> [SolarTerm: SolarDate] {
+        index(in: year).byTerm
+    }
+
+    private func index(in year: Int) -> YearTermIndex {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = cache[year] { return cached }
+        let computed = Self.computeIndex(in: year)
+        cache[year] = computed
+        return computed
+    }
+
+    private static func computeIndex(in year: Int) -> YearTermIndex {
+        var ordered: [(term: SolarTerm, date: SolarDate)] = []
+        ordered.reserveCapacity(SolarTerm.allCases.count)
+
+        var byTerm: [SolarTerm: SolarDate] = [:]
+        byTerm.reserveCapacity(SolarTerm.allCases.count)
+
+        var byDate: [SolarDate: SolarTerm] = [:]
+        byDate.reserveCapacity(SolarTerm.allCases.count)
+
+        for term in SolarTerm.allCases {
             guard let date = SolarTermCalc.solarTermDate(term: term, year: year) else {
-                return nil
+                continue
             }
-            return (term: term, date: date)
+            ordered.append((term: term, date: date))
+            byTerm[term] = date
+            // Preserve the first term in chronological order if two terms share a date.
+            if byDate[date] == nil {
+                byDate[date] = term
+            }
         }
+        return YearTermIndex(ordered: ordered, byTerm: byTerm, byDate: byDate)
     }
 }

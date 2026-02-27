@@ -10,6 +10,7 @@ enum LunarTableLookup: Sendable, Equatable, Hashable {
         let monthDays: [Int]       // 12 regular month day counts (29 or 30)
         let leapMonth: Int         // 0 = no leap, 1-12 = leap after that month
         let leapMonthDays: Int     // 29 or 30, 0 if no leap
+        let totalDays: Int         // 353-385
         let cnyMonth: Int          // 1 or 2
         let cnyDay: Int            // 1-31
     }
@@ -59,6 +60,7 @@ enum LunarTableLookup: Sendable, Equatable, Hashable {
             monthDays: monthDays,
             leapMonth: leapMonth,
             leapMonthDays: leapMonthDays,
+            totalDays: monthDays.reduce(0, +) + (leapMonth > 0 ? leapMonthDays : 0),
             cnyMonth: cnyMonth,
             cnyDay: cnyDay
         )
@@ -66,11 +68,7 @@ enum LunarTableLookup: Sendable, Equatable, Hashable {
 
     // Total days in a lunar year.
     static func yearDayCount(info: YearInfo) -> Int {
-        var total = info.monthDays.reduce(0, +)
-        if info.leapMonth > 0 {
-            total += info.leapMonthDays
-        }
-        return total
+        info.totalDays
     }
 
     // Day count for a specific lunar month.
@@ -150,14 +148,14 @@ enum LunarTableLookup: Sendable, Equatable, Hashable {
             // Regular month m
             let regularDays = info.monthDays[m - 1]
             if remaining < regularDays {
-                return LunarDate(year: info.year, month: m, day: remaining + 1, isLeapMonth: false)
+                return LunarDate(uncheckedYear: info.year, month: m, day: remaining + 1, isLeapMonth: false)
             }
             remaining -= regularDays
 
             // Leap month after regular month m
             if info.leapMonth == m {
                 if remaining < info.leapMonthDays {
-                    return LunarDate(year: info.year, month: m, day: remaining + 1, isLeapMonth: true)
+                    return LunarDate(uncheckedYear: info.year, month: m, day: remaining + 1, isLeapMonth: true)
                 }
                 remaining -= info.leapMonthDays
             }

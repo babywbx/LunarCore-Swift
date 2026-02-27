@@ -3,7 +3,7 @@ import Foundation
 /// A Gregorian (solar) calendar date.
 ///
 /// Validated on creation; invalid dates (e.g. Feb 30) return `nil`.
-public struct SolarDate: Equatable, Hashable, Comparable, Sendable {
+public struct SolarDate: Equatable, Hashable, Comparable, Sendable, Codable {
     /// Gregorian year.
     public let year: Int
     /// Gregorian month (1–12).
@@ -51,7 +51,7 @@ public struct SolarDate: Equatable, Hashable, Comparable, Sendable {
         guard let year = c.year, let month = c.month, let day = c.day else {
             return nil
         }
-        return SolarDate(uncheckedYear: year, month: month, day: day)
+        return SolarDate(year: year, month: month, day: day)
     }
 
     /// Returns whether the given year/month/day forms a valid Gregorian date.
@@ -77,5 +77,26 @@ public struct SolarDate: Equatable, Hashable, Comparable, Sendable {
 
     private static func isLeapYear(_ year: Int) -> Bool {
         (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+    }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case year, month, day
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let y = try c.decode(Int.self, forKey: .year)
+        let m = try c.decode(Int.self, forKey: .month)
+        let d = try c.decode(Int.self, forKey: .day)
+        guard SolarDate.isValid(year: y, month: m, day: d) else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: c.codingPath,
+                debugDescription: "Invalid Gregorian date: \(y)-\(m)-\(d)"))
+        }
+        self.year = y
+        self.month = m
+        self.day = d
     }
 }
