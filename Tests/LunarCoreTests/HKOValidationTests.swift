@@ -56,7 +56,7 @@ struct HKOValidationTests {
                 result = data
             }
             task.resume()
-            semaphore.wait()
+            _ = semaphore.wait(timeout: .now() + 15)
 
             if let data = result {
                 try? data.write(to: dest)
@@ -80,7 +80,12 @@ struct HKOValidationTests {
 
     private static func loadCSV(_ url: URL) -> [HKORow] {
         guard let content = try? String(contentsOf: url, encoding: .utf8) else { return [] }
-        return content.components(separatedBy: "\n").dropFirst().compactMap(parseCSVLine)
+        let dataLines = content.components(separatedBy: "\n").dropFirst()
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let rows = dataLines.compactMap(parseCSVLine)
+        assert(rows.count == dataLines.count,
+               "\(url.lastPathComponent): parsed \(rows.count)/\(dataLines.count) lines")
+        return rows
     }
 
     private static let monthAbbrevMap: [String: Int] = [
@@ -153,7 +158,11 @@ struct HKOValidationTests {
     @Test("HKO fixture files present")
     func fixtureExists() {
         #expect(!Self.entries.isEmpty, "No CSV fixtures found — check network or Fixtures directory")
-        #expect(Self.entries.count >= 365, "Only \(Self.entries.count) entries, expected at least 1 year")
+        let fm = FileManager.default
+        let csvCount = (try? fm.contentsOfDirectory(atPath: Self.fixturesDir.path))?
+            .filter { $0.hasSuffix(".csv") }.count ?? 0
+        #expect(Self.entries.count >= csvCount * 365,
+                "Only \(Self.entries.count) entries for \(csvCount) CSV files — some rows may have been lost")
     }
 
     @Test("HKO daily match", arguments: HKOValidationTests.entries)
