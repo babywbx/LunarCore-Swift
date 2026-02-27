@@ -19,13 +19,17 @@ struct PerformanceTests {
             return SolarDate(year: year, month: month, day: day)
         }
 
+        var sink = 0
         let start = CFAbsoluteTimeGetCurrent()
         for date in dates {
-            _ = cal.lunarDate(from: date)
+            if let lunar = cal.lunarDate(from: date) {
+                sink &+= lunar.hashValue
+            }
         }
         let elapsed = CFAbsoluteTimeGetCurrent() - start
 
         // 100ms in release; 200ms budget for debug/CI.
+        #expect(sink != 0)
         #expect(elapsed < 0.2, "10000 solar→lunar took \(elapsed)s, expected < 0.2s")
     }
 
@@ -39,25 +43,33 @@ struct PerformanceTests {
             return LunarDate(year: year, month: month, day: day)
         }
 
+        var sink = 0
         let start = CFAbsoluteTimeGetCurrent()
         for date in dates {
-            _ = cal.solarDate(from: date)
+            if let solar = cal.solarDate(from: date) {
+                sink &+= solar.hashValue
+            }
         }
         let elapsed = CFAbsoluteTimeGetCurrent() - start
 
         // 100ms in release; 200ms budget for debug/CI.
+        #expect(sink != 0)
         #expect(elapsed < 0.2, "10000 lunar→solar took \(elapsed)s, expected < 0.2s")
     }
 
     @Test("24 solar terms × 201 years < 200ms")
     func solarTermBulk() {
+        var sink = 0
         let start = CFAbsoluteTimeGetCurrent()
         for year in 1900...2100 {
-            _ = cal.solarTerms(in: year)
+            for item in cal.solarTerms(in: year) {
+                sink &+= item.date.hashValue
+            }
         }
         let elapsed = CFAbsoluteTimeGetCurrent() - start
 
         // Solar terms are computed + cached. First run computes all, should still be fast.
+        #expect(sink != 0)
         #expect(elapsed < 0.2, "Solar terms for 201 years took \(elapsed)s, expected < 0.2s")
     }
 
@@ -77,12 +89,26 @@ struct PerformanceTests {
                 day: Int.random(in: 1...29, using: &rng))
         }
 
+        var sink = 0
         let start = CFAbsoluteTimeGetCurrent()
-        for d in solarDates { _ = cal.lunarDate(from: d) }
-        for d in lunarDates { _ = cal.solarDate(from: d) }
-        for year in 2000...2049 { _ = cal.solarTerms(in: year) }
+        for d in solarDates {
+            if let lunar = cal.lunarDate(from: d) {
+                sink &+= lunar.hashValue
+            }
+        }
+        for d in lunarDates {
+            if let solar = cal.solarDate(from: d) {
+                sink &+= solar.hashValue
+            }
+        }
+        for year in 2000...2049 {
+            for item in cal.solarTerms(in: year) {
+                sink &+= item.date.hashValue
+            }
+        }
         let elapsed = CFAbsoluteTimeGetCurrent() - start
 
+        #expect(sink != 0)
         #expect(elapsed < 0.2, "Mixed workload took \(elapsed)s, expected < 0.2s")
     }
 }

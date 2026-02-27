@@ -70,7 +70,7 @@ public final class LunarCalendar: Sendable {
     /// Returns the Gregorian date of Chinese New Year (正月初一) for the given year.
     public func lunarNewYear(in year: Int) -> SolarDate? {
         guard let info = LunarTableLookup.decode(year: year) else { return nil }
-        return SolarDate(year: year, month: info.cnyMonth, day: info.cnyDay)
+        return SolarDate(uncheckedYear: year, month: info.cnyMonth, day: info.cnyDay)
     }
 
     // MARK: - Solar terms

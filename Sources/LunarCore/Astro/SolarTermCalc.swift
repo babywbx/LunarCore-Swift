@@ -46,7 +46,7 @@ enum SolarTermCalc: Sendable, Equatable, Hashable {
 
         // JD → calendar date
         let (y, m, d) = JulianDay.toGregorian(jd: jdBeijing)
-        return SolarDate(year: y, month: m, day: Int(d))
+        return SolarDate(uncheckedYear: y, month: m, day: Int(d))
     }
 
     // Initial JDE estimate based on average solar motion.

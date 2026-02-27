@@ -14,18 +14,24 @@ enum LunarTableLookup: Sendable, Equatable, Hashable {
         let cnyDay: Int            // 1-31
     }
 
+    // Decode once to avoid repeated bit unpacking and tiny array allocations in hot paths.
+    private static let decodedTable: [YearInfo] = LunarYearData.table.enumerated().map { offset, bits in
+        decode(bits: bits, year: LunarYearData.startYear + offset)
+    }
+
     // Decode a UInt32 entry for the given year.
     static func decode(year: Int) -> YearInfo? {
         let idx = year - LunarYearData.startYear
-        guard idx >= 0, idx < LunarYearData.table.count else {
+        guard idx >= 0, idx < decodedTable.count else {
             return nil
         }
-        return decode(bits: LunarYearData.table[idx], year: year)
+        return decodedTable[idx]
     }
 
     static func decode(bits: UInt32, year: Int) -> YearInfo {
         // [30-19]: 12 month sizes
         var monthDays: [Int] = []
+        monthDays.reserveCapacity(12)
         for i in 0..<12 {
             let bit = (bits >> UInt32(30 - i)) & 1
             monthDays.append(bit == 1 ? 30 : 29)
@@ -80,32 +86,18 @@ enum LunarTableLookup: Sendable, Equatable, Hashable {
     // MARK: - Solar → Lunar conversion
 
     static func solarToLunar(_ solar: SolarDate) -> LunarDate? {
-        // Try the lunar year that starts in the same Gregorian year or the year before.
-        // CNY is always in Jan or Feb, so for dates before CNY we need previous lunar year.
-        for lunarYear in [solar.year, solar.year - 1] {
-            guard let info = decode(year: lunarYear) else { continue }
-            guard let cny = SolarDate(year: lunarYear, month: info.cnyMonth, day: info.cnyDay) else {
-                continue
-            }
-            guard solar >= cny else { continue }
-
-            let dayOffset = daysBetween(from: cny, to: solar)
-            guard dayOffset >= 0 else { continue }
-
-            if let result = lunarDateFromOffset(info: info, dayOffset: dayOffset) {
-                return result
-            }
+        // CNY is always in Jan/Feb, so only current Gregorian year and previous year can match.
+        if let result = solarToLunar(solar, lunarYear: solar.year) {
+            return result
         }
-        return nil
+        return solarToLunar(solar, lunarYear: solar.year - 1)
     }
 
     // MARK: - Lunar → Solar conversion
 
     static func lunarToSolar(_ lunar: LunarDate) -> SolarDate? {
         guard let info = decode(year: lunar.year) else { return nil }
-        guard let cny = SolarDate(year: lunar.year, month: info.cnyMonth, day: info.cnyDay) else {
-            return nil
-        }
+        let cny = SolarDate(uncheckedYear: lunar.year, month: info.cnyMonth, day: info.cnyDay)
 
         // Count days from CNY to the target lunar date.
         var dayOffset = 0
@@ -139,6 +131,17 @@ enum LunarTableLookup: Sendable, Equatable, Hashable {
 
     // MARK: - Helpers
 
+    private static func solarToLunar(_ solar: SolarDate, lunarYear: Int) -> LunarDate? {
+        guard let info = decode(year: lunarYear) else { return nil }
+        let cny = SolarDate(uncheckedYear: lunarYear, month: info.cnyMonth, day: info.cnyDay)
+        guard solar >= cny else { return nil }
+
+        let dayOffset = daysBetween(from: cny, to: solar)
+        guard dayOffset >= 0 else { return nil }
+
+        return lunarDateFromOffset(info: info, dayOffset: dayOffset)
+    }
+
     // Convert day offset from CNY to a LunarDate.
     private static func lunarDateFromOffset(info: YearInfo, dayOffset: Int) -> LunarDate? {
         var remaining = dayOffset
@@ -164,15 +167,39 @@ enum LunarTableLookup: Sendable, Equatable, Hashable {
 
     // Days between two SolarDates using JD subtraction.
     private static func daysBetween(from a: SolarDate, to b: SolarDate) -> Int {
-        let jdA = JulianDay.fromGregorian(year: a.year, month: a.month, day: Double(a.day))
-        let jdB = JulianDay.fromGregorian(year: b.year, month: b.month, day: Double(b.day))
-        return Int((jdB - jdA).rounded())
+        daysFromCivil(year: b.year, month: b.month, day: b.day)
+        - daysFromCivil(year: a.year, month: a.month, day: a.day)
     }
 
-    // Add days to a SolarDate using JD arithmetic.
+    // Add days to a SolarDate using exact proleptic Gregorian arithmetic.
     private static func addDays(to date: SolarDate, days: Int) -> SolarDate? {
-        let jd = JulianDay.fromGregorian(year: date.year, month: date.month, day: Double(date.day))
-        let (year, month, day) = JulianDay.toGregorian(jd: jd + Double(days))
-        return SolarDate(year: year, month: month, day: Int(day))
+        let absolute = daysFromCivil(year: date.year, month: date.month, day: date.day) + days
+        let (year, month, day) = civilFromDays(absolute)
+        return SolarDate(uncheckedYear: year, month: month, day: day)
+    }
+
+    // Howard Hinnant's civil date conversion algorithms (exact integer Gregorian arithmetic).
+    private static func daysFromCivil(year: Int, month: Int, day: Int) -> Int {
+        let adjustedYear = year - (month <= 2 ? 1 : 0)
+        let era = adjustedYear >= 0 ? adjustedYear / 400 : (adjustedYear - 399) / 400
+        let yoe = adjustedYear - era * 400
+        let mp = month + (month > 2 ? -3 : 9)
+        let doy = (153 * mp + 2) / 5 + day - 1
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+        return era * 146_097 + doe - 719_468
+    }
+
+    private static func civilFromDays(_ z: Int) -> (year: Int, month: Int, day: Int) {
+        let shifted = z + 719_468
+        let era = shifted >= 0 ? shifted / 146_097 : (shifted - 146_096) / 146_097
+        let doe = shifted - era * 146_097
+        let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365
+        let y = yoe + era * 400
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+        let mp = (5 * doy + 2) / 153
+        let day = doy - (153 * mp + 2) / 5 + 1
+        let month = mp + (mp < 10 ? 3 : -9)
+        let year = y + (month <= 2 ? 1 : 0)
+        return (year, month, day)
     }
 }

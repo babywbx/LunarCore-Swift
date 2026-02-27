@@ -206,6 +206,6 @@ package enum LunarCalendarComputer: Sendable, Equatable, Hashable {
         let jdUT = jde - DeltaT.deltaT(year: decimalYear) / 86400.0
         let jdBeijing = jdUT + 8.0 / 24.0
         let (year, month, day) = JulianDay.toGregorian(jd: jdBeijing)
-        return SolarDate(year: year, month: month, day: Int(day))
+        return SolarDate(uncheckedYear: year, month: month, day: Int(day))
     }
 }
