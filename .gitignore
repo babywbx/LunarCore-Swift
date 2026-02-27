@@ -41,3 +41,6 @@ Thumbs.db
 *.profraw
 *.profdata
 codecov/
+
+# HKO fixtures (auto-downloaded by tests)
+Tests/LunarCoreTests/Fixtures/

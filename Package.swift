@@ -30,9 +30,7 @@ let package = Package(
         .testTarget(
             name: "LunarCoreTests",
             dependencies: ["LunarCore"],
-            resources: [
-                .copy("Fixtures/hko_data.json"),
-            ]
+            exclude: ["Fixtures"]
         ),
     ]
 )
