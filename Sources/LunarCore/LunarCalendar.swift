@@ -16,7 +16,7 @@ public final class LunarCalendar: Sendable {
     public static let shared = LunarCalendar()
 
     /// Library version string.
-    public static let version = "1.1.1"
+    public static let version = "1.2.0"
 
     /// The range of lunar years supported by this library.
     public var supportedYearRange: ClosedRange<Int> { 1900...2100 }
@@ -284,6 +284,10 @@ private final class SolarTermCache: @unchecked Sendable {
     private let lock = NSLock()
     private var cache: [Int: YearTermIndex] = [:]
 
+    private static let precomputedIndices: [YearTermIndex] = {
+        (SolarTermYearData.startYear...SolarTermYearData.endYear).map(makePrecomputedIndex)
+    }()
+
     func allTerms(in year: Int) -> [(term: SolarTerm, date: SolarDate)] {
         index(in: year).ordered
     }
@@ -301,12 +305,67 @@ private final class SolarTermCache: @unchecked Sendable {
     }
 
     private func index(in year: Int) -> YearTermIndex {
+        if let precomputed = Self.precomputedIndex(in: year) {
+            return precomputed
+        }
+
+        lock.lock()
+        if let cached = cache[year] {
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+
+        let computed = Self.computeIndex(in: year)
+
         lock.lock()
         defer { lock.unlock() }
         if let cached = cache[year] { return cached }
-        let computed = Self.computeIndex(in: year)
         cache[year] = computed
         return computed
+    }
+
+    private static func precomputedIndex(in year: Int) -> YearTermIndex? {
+        let index = year - SolarTermYearData.startYear
+        guard index >= 0, index < precomputedIndices.count else {
+            return nil
+        }
+        return precomputedIndices[index]
+    }
+
+    private static func makePrecomputedIndex(in year: Int) -> YearTermIndex {
+        let yearOffset = (year - SolarTermYearData.startYear) * SolarTermYearData.termsPerYear
+
+        var ordered: [(term: SolarTerm, date: SolarDate)] = []
+        ordered.reserveCapacity(SolarTerm.allCases.count)
+
+        var byTerm: [SolarTerm: SolarDate] = [:]
+        byTerm.reserveCapacity(SolarTerm.allCases.count)
+
+        var byDate: [SolarDate: SolarTerm] = [:]
+        byDate.reserveCapacity(SolarTerm.allCases.count)
+
+        for term in SolarTerm.allCases {
+            let packed = SolarTermYearData.table[yearOffset + term.rawValue]
+            guard packed != 0 else {
+                assertionFailure("Corrupt SolarTermYearData entry for \(term) \(year)")
+                continue
+            }
+            let date = unpackPrecomputedDate(packed, year: year)
+            ordered.append((term: term, date: date))
+            byTerm[term] = date
+            if byDate[date] == nil {
+                byDate[date] = term
+            }
+        }
+
+        return YearTermIndex(ordered: ordered, byTerm: byTerm, byDate: byDate)
+    }
+
+    private static func unpackPrecomputedDate(_ packed: UInt16, year: Int) -> SolarDate {
+        let month = Int((packed >> 8) & 0xFF)
+        let day = Int(packed & 0xFF)
+        return SolarDate(uncheckedYear: year, month: month, day: day)
     }
 
     private static func computeIndex(in year: Int) -> YearTermIndex {
