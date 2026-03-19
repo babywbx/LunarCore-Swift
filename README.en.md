@@ -212,6 +212,8 @@ fmt.chineseYear(2025)                    // "二〇二五"
 Validation sources:
 
 - ✅ **Hong Kong Observatory (HKO)** — 1,826 daily matches across 2023–2027, 100% accuracy
+- ✅ **HKO online year tables** — regression coverage across the last 100 complete Gregorian years (current window: 1926–2025)
+- ✅ **HKO online year tables** — additional spot coverage for key years including 1933, 1954, 1978, and 2057
 - ✅ **Apple `Calendar(.chinese)`** — cross-validated 2000–2030, 100% match
 - ✅ **15 boundary cases** — leap month 11, near-midnight solar terms, edge years, etc.
 
@@ -252,7 +254,7 @@ Validation sources:
 | **VSOP87** (Bretagnon & Francou, 1988) | Truncated solar longitude series |
 | **ELP-2000/82** (Chapront-Touzé & Chapront, 1983) | Truncated lunar longitude series |
 | **GB/T 33661-2017** | Chinese lunar calendar compilation rules |
-| **Hong Kong Observatory Open Data** | Validation dataset (government public data) |
+| **Hong Kong Observatory Open Data / online year tables** | Validation dataset and regression baseline (government public data) |
 
 ---
 
