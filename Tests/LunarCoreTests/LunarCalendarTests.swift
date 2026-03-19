@@ -150,6 +150,17 @@ struct CalendarSolarTermTests {
             #expect(a.date == b.date)
         }
     }
+
+    @Test("precomputed solar term lookup matches astronomical calculation")
+    func precomputedMatchesAstronomicalCalculation() {
+        for year in 1900...2100 {
+            for term in SolarTerm.allCases {
+                let publicDate = cal.solarTermDate(term, in: year)
+                let calculatedDate = SolarTermCalc.solarTermDate(term: term, year: year)
+                #expect(publicDate == calculatedDate, "\(term) \(year) mismatch: \(String(describing: publicDate)) vs \(String(describing: calculatedDate))")
+            }
+        }
+    }
 }
 
 // MARK: - GanZhi
@@ -351,7 +362,7 @@ struct CalendarMetadataTests {
 
     @Test("version is set")
     func version() {
-        #expect(LunarCalendar.version == "1.1.1")
+        #expect(LunarCalendar.version == "1.2.0")
     }
 
     @Test("shared is same instance")
