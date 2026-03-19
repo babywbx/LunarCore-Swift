@@ -27,6 +27,10 @@ let package = Package(
             name: "GenerateData",
             dependencies: ["LunarCore"]
         ),
+        .executableTarget(
+            name: "BenchmarkCLI",
+            dependencies: ["LunarCore"]
+        ),
         .testTarget(
             name: "LunarCoreTests",
             dependencies: ["LunarCore"],
