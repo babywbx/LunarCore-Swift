@@ -8,7 +8,7 @@
 
 [中文](README.md)
 
-**LunarCore** computes Chinese lunar calendar dates from astronomical first principles. It implements Meeus-based solar/lunar position algorithms, follows the [GB/T 33661-2017](https://openstd.samr.gov.cn/) national standard for lunar calendar compilation, and packs 201 years of lunar data into just ~800 bytes.
+**LunarCore** is built on Jean Meeus-based astronomical algorithms and the [GB/T 33661-2017](https://openstd.samr.gov.cn/) compilation rules, then compiles the supported range into compact lunar and solar-term indices for high-precision, low-latency, auditable runtime queries. The generation pipeline, fallback algorithms, and validation baselines are all kept in the open.
 
 ---
 
@@ -17,15 +17,23 @@
 | | Feature | Description |
 |-|---------|-------------|
 | 📅 | **Solar ↔ Lunar Conversion** | Bidirectional conversion for 1900–2100 (201 years) |
-| 🌿 | **24 Solar Terms** | Real-time computation via Newton-Raphson iteration |
+| 🌿 | **24 Solar Terms** | Compact solar-term indices compiled offline from the astronomical model for 1900–2100, with algorithmic fallback outside the range |
 | 🐉 | **GanZhi (干支)** | Year, month, and day Heavenly Stems & Earthly Branches |
 | 🐍 | **Chinese Zodiac** | 12 zodiac animals with Chinese, English, and emoji |
 | 🎂 | **Lunar Birthdays** | Next occurrence with leap month fallback |
 | 📝 | **Formatter** | Chinese `正月初一` and English `1st Month, Day 1` |
-| 📦 | **~800 Bytes Data** | Compact `UInt32` encoding for 201 lunar years |
+| 📦 | **Compact Index Layer** | `~800B` lunar year core table + `~9.6KB` solar-term index, both generated offline |
 | 🧵 | **Thread-safe** | Full `Sendable` conformance |
 | 🚫 | **Zero Dependencies** | Pure Swift, no third-party libraries |
 | ✅ | **Verified Accuracy** | Validated against HKO data & Apple Foundation Calendar |
+
+---
+
+## 🧠 Design Philosophy
+
+- **Algorithms are the source; indices are the shipping form**: the static data in the supported range is compiled offline from the astronomical model rather than maintained by hand.
+- **Performance serves correctness, not the other way around**: runtime queries prefer compact indices to reduce iterative computation, lock contention, and tail latency.
+- **Auditable, not opaque**: the generator, fallback path, and HKO / Apple cross-validation tests all live in the repository and can be reproduced directly.
 
 ---
 
@@ -37,7 +45,7 @@ Add to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/babywbx/LunarCore-Swift.git", from: "1.1.1"),
+    .package(url: "https://github.com/babywbx/LunarCore-Swift.git", from: "1.2.0"),
 ]
 ```
 
@@ -205,7 +213,7 @@ fmt.chineseYear(2025)                    // "二〇二五"
 
 | Metric | Value |
 |--------|-------|
-| Test functions | **243** |
+| Test functions | **247** |
 | Parameterized test cases | **~2,888** |
 | Line coverage | **94.49%** |
 
@@ -216,6 +224,18 @@ Validation sources:
 - ✅ **HKO online year tables** — additional spot coverage for key years including 1933, 1954, 1978, and 2057
 - ✅ **Apple `Calendar(.chinese)`** — cross-validated 2000–2030, 100% match
 - ✅ **15 boundary cases** — leap month 11, near-midnight solar terms, edge years, etc.
+
+---
+
+## ⚡ Benchmark
+
+Run the release benchmark CLI:
+
+```bash
+swift run -c release BenchmarkCLI
+```
+
+It covers the main hot paths, including `solar ↔ lunar`, `solarTermDate`, `solarTerms(in:)`, and `monthGanZhi`, and is intended for version-to-version performance comparisons.
 
 ---
 
