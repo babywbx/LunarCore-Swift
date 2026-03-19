@@ -14,6 +14,16 @@ import Glibc
 let startYear = 1900
 let endYear = 2100
 
+// HKO-authoritative historical corrections for early-20th-century windows where
+// the astronomical compilation path differs from the official promulgated calendar.
+// These values keep generated data aligned with Hong Kong Observatory year tables.
+let historicalLunarYearOverrides: [Int: UInt32] = [
+    1914: 0x692AF400,
+    1915: 0x5AA01D00,
+    1916: 0x6B500700,
+    1920: 0x24B82900,
+]
+
 enum OutputKind {
     case lunarYears
     case solarTerms
@@ -81,7 +91,12 @@ func generateLunarYears() {
             encoded.append(0)
             continue
         }
-        encoded.append(encode(raw))
+        let computed = encode(raw)
+        let value = historicalLunarYearOverrides[year] ?? computed
+        if value != computed {
+            writeStderr("NOTE: applied HKO historical override for \(year)")
+        }
+        encoded.append(value)
     }
 
     if !failures.isEmpty {

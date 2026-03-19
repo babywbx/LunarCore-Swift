@@ -44,7 +44,7 @@ struct HKOValidationTests {
         .appendingPathComponent("Fixtures")
 
     static let onlineFixturesDir: URL = fixturesDir.appendingPathComponent("HKOOnline")
-    static let onlineRegressionYears = [1933, 1954, 1978, 2057]
+    static let onlineRegressionYears = [1914, 1916, 1920, 1933, 1954, 1978, 2057]
     static let recentFullYearEnd = Calendar.current.component(.year, from: Date()) - 1
     static let recentFullYearStart = recentFullYearEnd - 99
     static let recentFullYearRange = recentFullYearStart...recentFullYearEnd

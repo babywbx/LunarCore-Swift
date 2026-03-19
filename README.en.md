@@ -221,7 +221,7 @@ Validation sources:
 
 - ✅ **Hong Kong Observatory (HKO)** — 1,826 daily matches across 2023–2027, 100% accuracy
 - ✅ **HKO online year tables** — regression coverage across the last 100 complete Gregorian years (current window: 1926–2025)
-- ✅ **HKO online year tables** — additional spot coverage for key years including 1933, 1954, 1978, and 2057
+- ✅ **HKO online year tables** — additional spot coverage for key years including 1914, 1916, 1920, 1933, 1954, 1978, and 2057
 - ✅ **Apple `Calendar(.chinese)`** — cross-validated 2000–2030, 100% match
 - ✅ **15 boundary cases** — leap month 11, near-midnight solar terms, edge years, etc.
 
