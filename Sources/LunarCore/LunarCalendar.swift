@@ -113,10 +113,10 @@ public final class LunarCalendar: Sendable {
         var ganZhiMonth = 11
         var ganZhiYear = solar.year - 1
 
-        let currentTermDates = solarTermCache.termDateMap(in: solar.year)
+        let termDates = solarTermCache.termDates(in: solar.year)
 
         for (jie, month) in Self.monthGanZhiJieTerms {
-            guard let jieDate = currentTermDates[jie] else { break }
+            guard let jieDate = termDates[jie.rawValue] else { break }
             if solar >= jieDate {
                 ganZhiMonth = month
                 ganZhiYear = month >= 11 ? solar.year - 1 : solar.year
@@ -277,7 +277,8 @@ public final class LunarCalendar: Sendable {
 private final class SolarTermCache: @unchecked Sendable {
     private struct YearTermIndex: Sendable {
         let ordered: [(term: SolarTerm, date: SolarDate)]
-        let byTerm: [SolarTerm: SolarDate]
+        // Flat array indexed by SolarTerm.rawValue (0–23), no hash overhead.
+        let termDates: ContiguousArray<SolarDate?>
         let byDate: [SolarDate: SolarTerm]
     }
 
@@ -293,15 +294,15 @@ private final class SolarTermCache: @unchecked Sendable {
     }
 
     func date(for term: SolarTerm, in year: Int) -> SolarDate? {
-        index(in: year).byTerm[term]
+        index(in: year).termDates[term.rawValue]
     }
 
     func term(on date: SolarDate, in year: Int) -> SolarTerm? {
         index(in: year).byDate[date]
     }
 
-    func termDateMap(in year: Int) -> [SolarTerm: SolarDate] {
-        index(in: year).byTerm
+    func termDates(in year: Int) -> ContiguousArray<SolarDate?> {
+        index(in: year).termDates
     }
 
     private func index(in year: Int) -> YearTermIndex {
@@ -339,8 +340,7 @@ private final class SolarTermCache: @unchecked Sendable {
         var ordered: [(term: SolarTerm, date: SolarDate)] = []
         ordered.reserveCapacity(SolarTerm.allCases.count)
 
-        var byTerm: [SolarTerm: SolarDate] = [:]
-        byTerm.reserveCapacity(SolarTerm.allCases.count)
+        var termDates = ContiguousArray<SolarDate?>(repeating: nil, count: SolarTerm.allCases.count)
 
         var byDate: [SolarDate: SolarTerm] = [:]
         byDate.reserveCapacity(SolarTerm.allCases.count)
@@ -353,13 +353,13 @@ private final class SolarTermCache: @unchecked Sendable {
             }
             let date = unpackPrecomputedDate(packed, year: year)
             ordered.append((term: term, date: date))
-            byTerm[term] = date
+            termDates[term.rawValue] = date
             if byDate[date] == nil {
                 byDate[date] = term
             }
         }
 
-        return YearTermIndex(ordered: ordered, byTerm: byTerm, byDate: byDate)
+        return YearTermIndex(ordered: ordered, termDates: termDates, byDate: byDate)
     }
 
     private static func unpackPrecomputedDate(_ packed: UInt16, year: Int) -> SolarDate {
@@ -372,8 +372,7 @@ private final class SolarTermCache: @unchecked Sendable {
         var ordered: [(term: SolarTerm, date: SolarDate)] = []
         ordered.reserveCapacity(SolarTerm.allCases.count)
 
-        var byTerm: [SolarTerm: SolarDate] = [:]
-        byTerm.reserveCapacity(SolarTerm.allCases.count)
+        var termDates = ContiguousArray<SolarDate?>(repeating: nil, count: SolarTerm.allCases.count)
 
         var byDate: [SolarDate: SolarTerm] = [:]
         byDate.reserveCapacity(SolarTerm.allCases.count)
@@ -383,12 +382,12 @@ private final class SolarTermCache: @unchecked Sendable {
                 continue
             }
             ordered.append((term: term, date: date))
-            byTerm[term] = date
+            termDates[term.rawValue] = date
             // Preserve the first term in chronological order if two terms share a date.
             if byDate[date] == nil {
                 byDate[date] = term
             }
         }
-        return YearTermIndex(ordered: ordered, byTerm: byTerm, byDate: byDate)
+        return YearTermIndex(ordered: ordered, termDates: termDates, byDate: byDate)
     }
 }
