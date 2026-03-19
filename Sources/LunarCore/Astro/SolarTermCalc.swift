@@ -2,12 +2,12 @@
 // Solves: solarApparentLongitude(jde) = targetLongitude
 // Conversion chain: JDE (TT) → subtract ΔT → UT → add 8h → UTC+8 date
 
-enum SolarTermCalc: Sendable, Equatable, Hashable {
+package enum SolarTermCalc: Sendable, Equatable, Hashable {
 
     // Calculate JDE when the Sun reaches a specific longitude.
     // Input: target longitude (degrees), calendar year
     // Output: JDE (Julian Ephemeris Day in TT)
-    static func solarTermJDE(targetLongitude: Double, year: Int) -> Double {
+    package static func solarTermJDE(targetLongitude: Double, year: Int) -> Double {
         var jde = initialEstimate(targetLongitude: targetLongitude, year: year)
 
         // Newton-Raphson iteration (converges in 3-5 steps typically)
@@ -31,7 +31,7 @@ enum SolarTermCalc: Sendable, Equatable, Hashable {
     // Calculate the Beijing-time (UTC+8) calendar date of a solar term.
     // Input: solar term, calendar year
     // Output: SolarDate in UTC+8
-    static func solarTermDate(term: SolarTerm, year: Int) -> SolarDate? {
+    package static func solarTermDate(term: SolarTerm, year: Int) -> SolarDate? {
         let jde = solarTermJDE(targetLongitude: term.solarLongitude, year: year)
 
         // Decimal year from JDE for ΔT lookup
