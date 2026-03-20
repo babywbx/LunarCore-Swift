@@ -3,7 +3,7 @@
 > **纯 Swift 实现的高精度中国农历计算库，覆盖 1900–2100 年。**
 
 [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-F05138?logo=swift&logoColor=white)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS%20%7C%20visionOS-blue.svg)](https://github.com/babywbx/LunarCore-Swift)
+[![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS%20%7C%20visionOS-blue.svg)](https://github.com/wbx1-Ltd/LunarCore-Swift)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](README.en.md)
@@ -45,7 +45,7 @@
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/babywbx/LunarCore-Swift.git", from: "1.2.0"),
+    .package(url: "https://github.com/wbx1-Ltd/LunarCore-Swift.git", from: "1.2.0"),
 ]
 ```
 
@@ -280,4 +280,4 @@ swift run -c release BenchmarkCLI
 
 ## 📄 许可
 
-[MIT License](LICENSE) © 2026 [Babywbx](https://github.com/babywbx)
+[MIT License](LICENSE) © 2026 [wbx1 Ltd.](https://github.com/wbx1-Ltd)
